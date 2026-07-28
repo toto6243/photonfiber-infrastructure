@@ -1,0 +1,21 @@
+# OpenTofu / Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# Crash logs
+crash.log
+
+# Variable files
+*.tfvars
+*.tfvars.json
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Ansible
+*.retry
