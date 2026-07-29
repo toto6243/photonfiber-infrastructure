@@ -47,6 +47,6 @@ jobs:
       - name: Ansible syntax check
         run: |
           cp ansible/inventory/hosts.yml.example ansible/inventory/hosts.yml
-          cp ansible/group_vars/mailcow/generated.yml.example ansible/group_vars/mailcow/generated.yml
+          cp ansible/inventory/group_vars/mailcow/generated.yml.example ansible/inventory/group_vars/mailcow/generated.yml
           ansible-galaxy collection install -r ansible/requirements.yml
           ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/site.yml --syntax-check

@@ -1,0 +1,26 @@
+---
+mailcow_hostname: mail.example.com
+mailcow_domain: example.com
+mailcow_install_path: /opt/example
+mailcow_git_repository: https://github.com/mailcow/mailcow-dockerized
+mailcow_git_version: master
+mailcow_timezone: Asia/Karachi
+mailcow_skip_lets_encrypt: false
+mailcow_skip_clamd: false
+mailcow_skip_fts: true
+mailcow_skip_sogo: false
+mailcow_enable_ipv6: false
+mailcow_watchdog_notify_email: admin@example.com
+mailcow_api_key: CHANGEME
+mailcow_api_allow_from: 127.0.0.1,172.22.1.1
+mailcow_smtp_relay_enabled: true
+mailcow_smtp_relay_host: smtp.azurecomm.net
+mailcow_smtp_relay_port: 587
+mailcow_smtp_relay_username: example-smtp-user
+mailcow_smtp_relay_password: CHANGEME
+mailcow_smtp_relay_tls_mode: starttls
+mailcow_backup_path: /opt/example
+mailcow_backup_retention_days: 14
+mailcow_backup_schedule: '*-*-* 02:30:00'
+docker_users:
+- exampleuser
