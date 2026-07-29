@@ -1,6 +1,6 @@
 name: validate
 
-on:
+"on":
   push:
     branches: ['**']
   pull_request:

@@ -9,7 +9,15 @@
         name: pfif-mailcow-backup.service
         state: started
     - name: Show latest backup
-      ansible.builtin.shell: "set -o pipefail; find {{ mailcow_backup_path }} -maxdepth 1 -type d -name 'mailcow-*' -printf '%f\\n' | sort | tail -1"
+      ansible.builtin.shell: >-
+        set -o pipefail;
+        find {{ mailcow_backup_path }}
+        -maxdepth 1
+        -type d
+        -name 'mailcow-*'
+        -printf '%f\\n'
+        | sort
+        | tail -1
       args:
         executable: /bin/bash
       register: latest_backup
