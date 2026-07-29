@@ -45,8 +45,9 @@ jobs:
         run: yamllint ansible .github/workflows
 
       - name: Ansible syntax check
+        working-directory: ansible
         run: |
-          cp ansible/inventory/hosts.yml.example ansible/inventory/hosts.yml
-          cp ansible/inventory/group_vars/mailcow/generated.yml.example ansible/inventory/group_vars/mailcow/generated.yml
-          ansible-galaxy collection install -r ansible/requirements.yml
-          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/site.yml --syntax-check
+          cp inventory/hosts.yml.example inventory/hosts.yml
+          cp inventory/group_vars/mailcow/generated.yml.example inventory/group_vars/mailcow/generated.yml
+          ansible-galaxy collection install -r requirements.yml
+          ansible-playbook -i inventory/hosts.yml playbooks/site.yml --syntax-check
