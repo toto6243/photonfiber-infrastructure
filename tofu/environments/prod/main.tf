@@ -15,19 +15,19 @@ module "resource_group" {
 module "network" {
   source = "../../modules/network"
 
-  resource_group_name             = module.resource_group.name
-  location                        = module.resource_group.location
-  vnet_name                       = local.names.vnet
-  vnet_address_space              = var.vnet_address_space
-  subnet_name                     = local.names.subnet
-  subnet_address_prefixes         = var.subnet_address_prefixes
-  public_ip_name                  = local.names.public_ip
-  nic_name                        = local.names.nic
-  private_ip_address              = var.private_ip_address
-  domain_name_label               = replace("${local.prefix}-mail", "_", "-")
+  resource_group_name            = module.resource_group.name
+  location                       = module.resource_group.location
+  vnet_name                      = local.names.vnet
+  vnet_address_space             = var.vnet_address_space
+  subnet_name                    = local.names.subnet
+  subnet_address_prefixes        = var.subnet_address_prefixes
+  public_ip_name                 = local.names.public_ip
+  nic_name                       = local.names.nic
+  private_ip_address             = var.private_ip_address
+  domain_name_label              = replace("${local.prefix}-mail", "_", "-")
   availability_zone              = var.availability_zone
   accelerated_networking_enabled = var.accelerated_networking_enabled
-  tags                            = local.common_tags
+  tags                           = local.common_tags
 }
 
 module "nsg" {
@@ -38,7 +38,7 @@ module "nsg" {
   location             = module.resource_group.location
   network_interface_id = module.network.nic_id
   ssh_allowed_cidrs    = var.ssh_allowed_cidrs
-  tags                  = local.common_tags
+  tags                 = local.common_tags
 }
 
 module "storage" {
