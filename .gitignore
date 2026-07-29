@@ -1,0 +1,46 @@
+# Local configuration and secrets
+.env
+.env.local
+*.auto.tfvars
+*.tfvars
+!*.tfvars.example
+backend.hcl
+!backend.hcl.example
+ansible/inventory/hosts.yml
+ansible/group_vars/mailcow/generated.yml
+ansible/group_vars/mailcow/secrets.yml
+
+# OpenTofu/Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfplan
+.terraform.lock.hcl
+
+# Ansible
+*.retry
+.ansible/
+
+# Keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*.local.json
+
+# Local artifacts
+artifacts/
+backups/
+.tmp/
+*.tfstate*
+.terraform/
+ansible/inventory/group_vars/mailcow/generated.yml

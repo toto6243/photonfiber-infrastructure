@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+source /etc/pfif-mailcow-backup.env
+mkdir -p "$MAILCOW_BACKUP_PATH"
+chmod 0755 "$MAILCOW_BACKUP_PATH"
+
+before="$(find "$MAILCOW_BACKUP_PATH" -mindepth 1 -maxdepth 1 -type d -name 'mailcow-*' -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2- || true)"
+
+cd "$MAILCOW_INSTALL_PATH"
+export MAILCOW_BACKUP_LOCATION="$MAILCOW_BACKUP_PATH"
+./helper-scripts/backup_and_restore.sh backup "$MAILCOW_BACKUP_COMPONENTS" --delete-days "$MAILCOW_BACKUP_RETENTION_DAYS"
+
+after="$(find "$MAILCOW_BACKUP_PATH" -mindepth 1 -maxdepth 1 -type d -name 'mailcow-*' -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2- || true)"
+[[ -n "$after" ]] || { echo "Mailcow backup directory was not created" >&2; exit 1; }
+
+if [[ "$AZURE_BACKUP_ENABLED" == "true" ]]; then
+  [[ -n "$AZURE_STORAGE_ACCOUNT" && -n "$AZURE_STORAGE_CONTAINER" ]] || {
+    echo "Azure backup is enabled but storage outputs are empty" >&2
+    exit 1
+  }
+  az login --identity --output none
+  az storage blob upload-batch \
+    --auth-mode login \
+    --account-name "$AZURE_STORAGE_ACCOUNT" \
+    --destination "$AZURE_STORAGE_CONTAINER" \
+    --destination-path "$(basename "$after")" \
+    --source "$after" \
+    --overwrite true \
+    --only-show-errors
+fi
+
+if [[ "$after" == "$before" ]]; then
+  echo "Backup helper completed; latest directory was unchanged: $after"
+else
+  echo "Backup completed: $after"
+fi

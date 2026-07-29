@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+source /etc/pfif-mailcow-backup.env
+source_path="${1:-}"
+[[ -n "$source_path" ]] || { echo "Usage: $0 /path/to/mailcow-backup-parent-or-archive" >&2; exit 64; }
+
+tmp_dir=""
+cleanup() {
+  [[ -n "$tmp_dir" && -d "$tmp_dir" ]] && rm -rf "$tmp_dir"
+}
+trap cleanup EXIT
+
+if [[ -f "$source_path" ]]; then
+  tmp_dir="$(mktemp -d)"
+  case "$source_path" in
+    *.tar.gz|*.tgz) tar -xzf "$source_path" -C "$tmp_dir" ;;
+    *.tar.zst|*.tzst) tar --zstd -xf "$source_path" -C "$tmp_dir" ;;
+    *) echo "Supported archives: .tar.gz, .tgz, .tar.zst, .tzst" >&2; exit 65 ;;
+  esac
+  backup_parent="$tmp_dir"
+elif [[ -d "$source_path" ]]; then
+  if [[ "$(basename "$source_path")" == mailcow-* ]]; then
+    backup_parent="$(dirname "$source_path")"
+  else
+    backup_parent="$source_path"
+  fi
+else
+  echo "Restore source not found: $source_path" >&2
+  exit 66
+fi
+
+find "$backup_parent" -mindepth 1 -maxdepth 1 -type d -name 'mailcow-*' | grep -q . || {
+  echo "No mailcow-* backup directory found below $backup_parent" >&2
+  exit 65
+}
+
+cd "$MAILCOW_INSTALL_PATH"
+export MAILCOW_BACKUP_LOCATION="$backup_parent"
+./helper-scripts/backup_and_restore.sh restore

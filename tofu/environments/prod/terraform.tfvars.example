@@ -1,0 +1,31 @@
+subscription_id = "1fbb027b-5835-4069-a5e2-c60815358d1a"
+tenant_id       = "b5d9eb9a-edb1-43df-be5d-87be76aa7dd8"
+project_name    = "pfif"
+environment     = "prod"
+location        = "uaenorth"
+
+mail_domain   = "photonfiber.pk"
+mail_hostname = "mail.photonfiber.pk"
+
+admin_username            = "azureadmin"
+admin_ssh_public_key_path = "/Users/you/.ssh/id_ed25519.pub"
+ssh_allowed_cidrs         = ["203.0.113.10/32"]
+
+vm_size                      = "Standard_B2s_v2"
+os_disk_size_gb               = 64
+data_disk_size_gb             = 128
+os_disk_type                  = "StandardSSD_LRS"
+data_disk_type                = "StandardSSD_LRS"
+availability_zone             = null
+accelerated_networking_enabled = false
+encryption_at_host_enabled    = false
+
+vnet_address_space       = ["10.40.0.0/16"]
+subnet_address_prefixes = ["10.40.1.0/24"]
+private_ip_address       = "10.40.1.10"
+
+create_backup_storage  = true
+backup_replication_type = "LRS"
+backup_retention_days  = 14
+manage_cloudflare_dns  = false
+cloudflare_zone_id     = null

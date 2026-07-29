@@ -1,0 +1,12 @@
+---
+all:
+  children:
+    mailcow:
+      hosts:
+        mailcow01:
+          ansible_host: 203.0.113.10
+          ansible_user: azureadmin
+          ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+          azure_backup_enabled: false
+          azure_storage_account: ''
+          azure_storage_container: ''

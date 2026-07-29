@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export PFIF_ROOT="$ROOT_DIR"
+
+usage() {
+  cat <<'EOF'
+PFIF - Photon Fiber Infrastructure Framework
+
+Usage: ./pfif COMMAND [ARGUMENT]
+
+Commands:
+  check        Validate local tools, Azure login and configuration
+  configure    Generate backend, tfvars and Ansible variables from .env
+  init         Configure, bootstrap remote state and initialize OpenTofu/Ansible
+  fmt          Format OpenTofu files
+  plan         Create an OpenTofu execution plan
+  apply        Apply Azure and optional Cloudflare infrastructure
+  inventory    Generate Ansible inventory from OpenTofu outputs
+  ansible      Configure the VM and deploy Mailcow
+  deploy       Run the complete deployment pipeline
+  status       Show OpenTofu outputs and remote Mailcow container status
+  dns          Print DNS records and DKIM instructions
+  rdns         Configure Azure reverse DNS after forward DNS resolves
+  backup       Trigger a Mailcow backup now
+  restore PATH Interactively restore a local backup archive or directory
+  update       Back up and update Mailcow
+  validate     Validate DNS, TCP ports, HTTPS and SMTP banner
+  destroy      Destroy workload infrastructure (remote state is retained)
+  outputs      Print OpenTofu outputs as JSON
+  help         Show this help
+EOF
+}
+
+cmd="${1:-help}"
+shift || true
+
+case "$cmd" in
+  help|-h|--help) usage ;;
+  check) "$ROOT_DIR/scripts/check-prereqs.sh" ;;
+  configure) "$ROOT_DIR/scripts/configure.sh" ;;
+  init)
+    "$ROOT_DIR/scripts/check-prereqs.sh"
+    "$ROOT_DIR/scripts/configure.sh"
+    "$ROOT_DIR/scripts/bootstrap-state.sh"
+    "$ROOT_DIR/scripts/tofu.sh" init
+    "$ROOT_DIR/scripts/install-ansible-collections.sh"
+    ;;
+  fmt)
+    tofu -chdir="$ROOT_DIR/tofu/environments/prod" fmt -recursive
+    ;;
+  plan)
+    "$ROOT_DIR/scripts/configure.sh"
+    "$ROOT_DIR/scripts/bootstrap-state.sh"
+    "$ROOT_DIR/scripts/tofu.sh" init
+    "$ROOT_DIR/scripts/tofu.sh" plan
+    ;;
+  apply)
+    "$ROOT_DIR/scripts/configure.sh"
+    "$ROOT_DIR/scripts/bootstrap-state.sh"
+    "$ROOT_DIR/scripts/tofu.sh" init
+    "$ROOT_DIR/scripts/tofu.sh" apply
+    "$ROOT_DIR/scripts/generate-inventory.sh"
+    ;;
+  inventory) "$ROOT_DIR/scripts/generate-inventory.sh" ;;
+  ansible)
+    "$ROOT_DIR/scripts/generate-inventory.sh"
+    "$ROOT_DIR/scripts/wait-for-ssh.sh"
+    "$ROOT_DIR/scripts/ansible.sh" site.yml
+    ;;
+  deploy)
+    "$ROOT_DIR/scripts/check-prereqs.sh"
+    "$ROOT_DIR/scripts/configure.sh"
+    "$ROOT_DIR/scripts/bootstrap-state.sh"
+    "$ROOT_DIR/scripts/tofu.sh" init
+    "$ROOT_DIR/scripts/tofu.sh" apply
+    "$ROOT_DIR/scripts/generate-inventory.sh"
+    "$ROOT_DIR/scripts/wait-for-ssh.sh"
+    "$ROOT_DIR/scripts/ansible.sh" site.yml
+    "$ROOT_DIR/scripts/configure-rdns.sh" --best-effort
+    "$ROOT_DIR/scripts/validate.sh" --best-effort
+    ;;
+  status) "$ROOT_DIR/scripts/status.sh" ;;
+  dns) "$ROOT_DIR/scripts/show-dns-records.sh" ;;
+  rdns) "$ROOT_DIR/scripts/configure-rdns.sh" ;;
+  backup) "$ROOT_DIR/scripts/backup-now.sh" ;;
+  restore)
+    [[ $# -eq 1 ]] || { echo "Usage: ./pfif restore /path/to/backup" >&2; exit 64; }
+    "$ROOT_DIR/scripts/restore.sh" "$1"
+    ;;
+  update) "$ROOT_DIR/scripts/update-mailcow.sh" ;;
+  validate) "$ROOT_DIR/scripts/validate.sh" ;;
+  destroy) "$ROOT_DIR/scripts/destroy.sh" ;;
+  outputs) "$ROOT_DIR/scripts/tofu.sh" output -json ;;
+  *) echo "Unknown command: $cmd" >&2; usage >&2; exit 64 ;;
+esac

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+source /etc/pfif-mailcow-backup.env
+cd "$MAILCOW_INSTALL_PATH"
+
+set +e
+./update.sh --force
+rc=$?
+set -e
+if [[ $rc -eq 2 ]]; then
+  echo "Mailcow update modules changed; restarting update once."
+  ./update.sh --force
+elif [[ $rc -ne 0 ]]; then
+  exit "$rc"
+fi

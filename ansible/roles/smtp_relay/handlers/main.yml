@@ -1,0 +1,33 @@
+---
+- name: Rebuild relay credential map
+  ansible.builtin.command:
+    cmd: >-
+      docker compose exec -T postfix-mailcow
+      postmap /opt/postfix/conf/sasl_passwd
+    chdir: "{{ mailcow_install_path }}"
+  changed_when: true
+  listen: Rebuild relay credential map
+  notify: Restart Postfix Mailcow
+
+- name: Secure relay credential source
+  ansible.builtin.file:
+    path: "{{ mailcow_install_path }}/data/conf/postfix/sasl_passwd"
+    owner: root
+    group: root
+    mode: "0600"
+  listen: Rebuild relay credential map
+
+- name: Secure relay credential database
+  ansible.builtin.file:
+    path: "{{ mailcow_install_path }}/data/conf/postfix/sasl_passwd.db"
+    owner: root
+    group: root
+    mode: "0600"
+  listen: Rebuild relay credential map
+
+- name: Restart Postfix Mailcow
+  ansible.builtin.command:
+    cmd: docker compose restart postfix-mailcow
+    chdir: "{{ mailcow_install_path }}"
+  changed_when: true
+  listen: Restart Postfix Mailcow

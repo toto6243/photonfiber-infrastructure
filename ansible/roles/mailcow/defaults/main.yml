@@ -1,0 +1,17 @@
+---
+mailcow_hostname: "mail.photonfiber.pk"
+mailcow_domain: "photonfiber.pk"
+mailcow_install_path: "/opt/mailcow-dockerized"
+mailcow_git_repository: "https://github.com/mailcow/mailcow-dockerized"
+mailcow_git_version: "master"
+mailcow_timezone: "Asia/Karachi"
+
+mailcow_skip_lets_encrypt: false
+mailcow_skip_clamd: false
+mailcow_skip_fts: true
+mailcow_skip_sogo: false
+mailcow_enable_ipv6: false
+
+mailcow_watchdog_notify_email: ""
+mailcow_api_key: ""
+mailcow_api_allow_from: "127.0.0.1,172.22.1.1"

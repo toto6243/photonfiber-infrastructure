@@ -1,0 +1,91 @@
+---
+- name: Map architecture for Docker repository
+  ansible.builtin.set_fact:
+    docker_apt_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64'}.get(ansible_architecture, ansible_architecture) }}"
+
+- name: Create APT keyring directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install Docker repository signing key
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    owner: root
+    group: root
+    mode: '0644'
+    force: true
+
+- name: Configure Docker APT repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ docker_apt_arch }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    filename: docker
+    state: present
+
+- name: Install Docker Engine and Compose plugin
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: true
+
+- name: Configure Docker daemon
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      {
+        "live-restore": true,
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "20m",
+          "max-file": "5"
+        }
+      }
+  notify: Restart Docker
+
+- name: Ensure Docker service is enabled
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Add administrators to docker group
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop: "{{ docker_users }}"
+
+- name: Read Docker server version
+  ansible.builtin.command: docker version --format '{{ "{{" }}.Server.Version{{ "}}" }}'
+  register: docker_server_version
+  changed_when: false
+
+- name: Assert Docker major version is supported
+  ansible.builtin.assert:
+    that:
+      - docker_server_version.stdout.split('.')[0] | int >= 24
+    fail_msg: "Mailcow requires Docker 24 or newer."
+
+- name: Read Docker Compose version
+  ansible.builtin.command: docker compose version --short
+  register: docker_compose_version
+  changed_when: false
+
+- name: Assert Compose plugin major version is supported
+  ansible.builtin.assert:
+    that:
+      - docker_compose_version.stdout.split('.')[0] | int >= 2
+    fail_msg: "Mailcow requires Docker Compose 2 or newer."

@@ -1,0 +1,48 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "PFIF: Check prerequisites",
+      "type": "shell",
+      "command": "./pfif check",
+      "problemMatcher": []
+    },
+    {
+      "label": "PFIF: Plan",
+      "type": "shell",
+      "command": "./pfif plan",
+      "problemMatcher": []
+    },
+    {
+      "label": "PFIF: Deploy everything",
+      "type": "shell",
+      "command": "./pfif deploy",
+      "problemMatcher": [],
+      "group": {"kind": "build", "isDefault": true}
+    },
+    {
+      "label": "PFIF: Status",
+      "type": "shell",
+      "command": "./pfif status",
+      "problemMatcher": []
+    },
+    {
+      "label": "PFIF: Validate",
+      "type": "shell",
+      "command": "./pfif validate",
+      "problemMatcher": []
+    },
+    {
+      "label": "PFIF: Backup now",
+      "type": "shell",
+      "command": "./pfif backup",
+      "problemMatcher": []
+    },
+    {
+      "label": "PFIF: Update Mailcow",
+      "type": "shell",
+      "command": "./pfif update",
+      "problemMatcher": []
+    }
+  ]
+}

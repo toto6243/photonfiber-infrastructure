@@ -1,0 +1,5 @@
+---
+ansible_python_interpreter: /usr/bin/python3
+pfif_timezone: Asia/Karachi
+unattended_upgrades_enabled: true
+reboot_time: '04:30'

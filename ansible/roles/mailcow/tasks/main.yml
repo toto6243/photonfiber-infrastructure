@@ -1,0 +1,121 @@
+---
+- name: Validate Mailcow configuration
+  ansible.builtin.assert:
+    that:
+      - mailcow_hostname is match('^[a-z0-9][a-z0-9.-]+[a-z0-9]$')
+      - mailcow_domain | length > 3
+      - mailcow_install_path == '/opt/mailcow-dockerized'
+      - mailcow_git_version == 'master'
+    fail_msg: "Generated Mailcow variables are invalid. Run ./pfif configure."
+
+- name: Ensure Mailcow parent is writable
+  ansible.builtin.file:
+    path: "{{ mailcow_install_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Clone stable Mailcow repository
+  ansible.builtin.git:
+    repo: "{{ mailcow_git_repository }}"
+    dest: "{{ mailcow_install_path }}"
+    version: "{{ mailcow_git_version }}"
+    update: false
+    force: false
+
+- name: Ensure .env points to mailcow.conf
+  ansible.builtin.file:
+    src: mailcow.conf
+    dest: "{{ mailcow_install_path }}/.env"
+    state: link
+    force: true
+
+- name: Generate initial Mailcow configuration non-interactively
+  ansible.builtin.command:
+    cmd: ./generate_config.sh --dev
+    chdir: "{{ mailcow_install_path }}"
+    creates: "{{ mailcow_install_path }}/mailcow.conf"
+  environment:
+    MAILCOW_HOSTNAME: "{{ mailcow_hostname }}"
+    MAILCOW_TZ: "{{ mailcow_timezone }}"
+    SKIP_CLAMD: "{{ 'y' if mailcow_skip_clamd else 'n' }}"
+
+- name: Configure Mailcow settings
+  ansible.builtin.lineinfile:
+    path: "{{ mailcow_install_path }}/mailcow.conf"
+    regexp: "^#?{{ item.key }}=.*$"
+    line: "{{ item.key }}={{ item.value }}"
+    owner: root
+    group: root
+    mode: '0600'
+  loop:
+    - {key: MAILCOW_HOSTNAME, value: "{{ mailcow_hostname }}"}
+    - {key: TZ, value: "{{ mailcow_timezone }}"}
+    - {key: HTTP_PORT, value: '80'}
+    - {key: HTTP_BIND, value: ''}
+    - {key: HTTPS_PORT, value: '443'}
+    - {key: HTTPS_BIND, value: ''}
+    - {key: HTTP_REDIRECT, value: 'y'}
+    - {key: SKIP_LETS_ENCRYPT, value: "{{ 'y' if mailcow_skip_lets_encrypt else 'n' }}"}
+    - {key: SKIP_CLAMD, value: "{{ 'y' if mailcow_skip_clamd else 'n' }}"}
+    - {key: SKIP_FTS, value: "{{ 'y' if mailcow_skip_fts else 'n' }}"}
+    - {key: SKIP_SOGO, value: "{{ 'y' if mailcow_skip_sogo else 'n' }}"}
+    - {key: ENABLE_IPV6, value: "{{ 'true' if mailcow_enable_ipv6 else 'false' }}"}
+    - {key: ALLOW_ADMIN_EMAIL_LOGIN, value: 'n'}
+    - {key: ADDITIONAL_SAN, value: "autoconfig.{{ mailcow_domain }},autodiscover.{{ mailcow_domain }}"}
+    - {key: AUTODISCOVER_SAN, value: 'y'}
+    - {key: WATCHDOG_NOTIFY_EMAIL, value: "{{ mailcow_watchdog_notify_email }}"}
+  notify: Restart Mailcow
+
+- name: Configure Mailcow API key
+  ansible.builtin.lineinfile:
+    path: "{{ mailcow_install_path }}/mailcow.conf"
+    regexp: '^#?API_KEY=.*$'
+    line: "API_KEY={{ mailcow_api_key }}"
+    owner: root
+    group: root
+    mode: '0600'
+  when: mailcow_api_key | default('') | length > 8
+  no_log: true
+  notify: Restart Mailcow
+
+- name: Configure Mailcow API allow list
+  ansible.builtin.lineinfile:
+    path: "{{ mailcow_install_path }}/mailcow.conf"
+    regexp: '^#?API_ALLOW_FROM=.*$'
+    line: "API_ALLOW_FROM={{ mailcow_api_allow_from }}"
+    owner: root
+    group: root
+    mode: '0600'
+  when: mailcow_api_key | default('') | length > 8
+  no_log: true
+  notify: Restart Mailcow
+
+- name: Validate Docker Compose configuration
+  ansible.builtin.command: docker compose config --quiet
+  args:
+    chdir: "{{ mailcow_install_path }}"
+  changed_when: false
+
+- name: Pull Mailcow images
+  ansible.builtin.command: docker compose pull
+  args:
+    chdir: "{{ mailcow_install_path }}"
+  changed_when: true
+
+- name: Start Mailcow
+  ansible.builtin.command: docker compose up -d --remove-orphans
+  args:
+    chdir: "{{ mailcow_install_path }}"
+  changed_when: true
+
+- name: Wait for local Mailcow HTTPS
+  ansible.builtin.uri:
+    url: https://127.0.0.1/
+    validate_certs: false
+    status_code: [200, 301, 302, 403]
+  register: mailcow_https
+  retries: 60
+  delay: 10
+  until: mailcow_https.status in [200, 301, 302, 403]

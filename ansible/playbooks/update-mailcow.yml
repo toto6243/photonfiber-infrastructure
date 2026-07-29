@@ -1,0 +1,17 @@
+---
+- name: Back up and update Mailcow
+  hosts: mailcow
+  become: true
+  gather_facts: false
+  serial: 1
+  tasks:
+    - name: Run pre-update backup
+      ansible.builtin.command: /usr/local/sbin/pfif-mailcow-backup
+      changed_when: true
+    - name: Update Mailcow
+      ansible.builtin.command: /usr/local/sbin/pfif-mailcow-update
+      register: mailcow_update
+      changed_when: true
+    - name: Show update result
+      ansible.builtin.debug:
+        var: mailcow_update.stdout_lines

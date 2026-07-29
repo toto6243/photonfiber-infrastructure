@@ -1,0 +1,49 @@
+#cloud-config
+hostname: ${hostname}
+manage_etc_hosts: true
+package_update: true
+package_upgrade: false
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - jq
+  - python3
+  - rsync
+  - xfsprogs
+write_files:
+  - path: /usr/local/sbin/pfif-prepare-host
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/usr/bin/env bash
+      set -Eeuo pipefail
+      disk=/dev/disk/azure/scsi1/lun0
+      for _ in $(seq 1 60); do
+        [[ -b "$disk" ]] && break
+        sleep 5
+      done
+      [[ -b "$disk" ]] || { echo "Azure data disk not found: $disk" >&2; exit 1; }
+
+      if ! blkid "$disk" >/dev/null 2>&1; then
+        mkfs.xfs -f -L pfifdata "$disk"
+      fi
+
+      mkdir -p /opt
+      uuid=$(blkid -s UUID -o value "$disk")
+      grep -q "UUID=$uuid " /etc/fstab || echo "UUID=$uuid /opt xfs defaults,nofail 0 2" >> /etc/fstab
+      mountpoint -q /opt || mount /opt
+      mkdir -p /opt/mailcow-dockerized /opt/mailcow-backups
+      chmod 0755 /opt /opt/mailcow-backups
+
+      if [[ ! -f /swapfile ]]; then
+        fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
+        chmod 0600 /swapfile
+        mkswap /swapfile
+      fi
+      swapon --show=NAME --noheadings | grep -qx /swapfile || swapon /swapfile
+      grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+      touch /var/lib/pfif-cloud-init-complete
+runcmd:
+  - ['/usr/local/sbin/pfif-prepare-host']
+final_message: "PFIF cloud-init completed after $UPTIME seconds"

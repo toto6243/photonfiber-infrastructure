@@ -1,0 +1,95 @@
+---
+- name: Create Mailcow backup directory
+  ansible.builtin.file:
+    path: "{{ mailcow_backup_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install Azure CLI for managed-identity backup upload
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+  args:
+    executable: /bin/bash
+    creates: /usr/bin/az
+  when: azure_backup_enabled | default(false) | bool
+
+- name: Install backup environment
+  ansible.builtin.template:
+    src: backup.env.j2
+    dest: /etc/pfif-mailcow-backup.env
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Install backup wrapper
+  ansible.builtin.template:
+    src: pfif-mailcow-backup.j2
+    dest: /usr/local/sbin/pfif-mailcow-backup
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Install restore wrapper
+  ansible.builtin.template:
+    src: pfif-mailcow-restore.j2
+    dest: /usr/local/sbin/pfif-mailcow-restore
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Install update wrapper
+  ansible.builtin.template:
+    src: pfif-mailcow-update.j2
+    dest: /usr/local/sbin/pfif-mailcow-update
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Install backup systemd service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/pfif-mailcow-backup.service
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=PFIF Mailcow backup
+      Requires=docker.service
+      After=docker.service network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      EnvironmentFile=/etc/pfif-mailcow-backup.env
+      ExecStart=/usr/local/sbin/pfif-mailcow-backup
+      Nice=10
+      IOSchedulingClass=best-effort
+      IOSchedulingPriority=7
+
+- name: Install backup systemd timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/pfif-mailcow-backup.timer
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=Run PFIF Mailcow backup daily
+
+      [Timer]
+      OnCalendar={{ mailcow_backup_schedule }}
+      Persistent=true
+      RandomizedDelaySec=900
+
+      [Install]
+      WantedBy=timers.target
+
+- name: Enable backup timer
+  ansible.builtin.systemd:
+    name: pfif-mailcow-backup.timer
+    enabled: true
+    state: started
+    daemon_reload: true

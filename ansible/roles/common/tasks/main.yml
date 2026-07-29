@@ -1,0 +1,49 @@
+---
+- name: Wait for cloud-init
+  ansible.builtin.command: cloud-init status --wait
+  register: cloud_init_status
+  changed_when: false
+  failed_when: cloud_init_status.rc not in [0, 2]
+
+- name: Verify PFIF cloud-init marker
+  ansible.builtin.stat:
+    path: /var/lib/pfif-cloud-init-complete
+  register: pfif_cloud_init
+
+- name: Assert cloud-init prepared the data disk
+  ansible.builtin.assert:
+    that:
+      - pfif_cloud_init.stat.exists
+    fail_msg: "PFIF cloud-init did not complete. Check /var/log/cloud-init-output.log."
+
+- name: Set system timezone
+  community.general.timezone:
+    name: "{{ pfif_timezone }}"
+
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: mailcow
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gawk
+      - git
+      - gnupg
+      - jq
+      - netcat-openbsd
+      - openssl
+      - python3
+      - rsync
+      - unattended-upgrades
+      - zstd
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Verify /opt is a dedicated mount
+  ansible.builtin.command: findmnt --mountpoint /opt
+  register: opt_mount
+  changed_when: false

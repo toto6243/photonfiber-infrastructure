@@ -1,0 +1,13 @@
+---
+- name: Deploy production Mailcow
+  hosts: mailcow
+  become: true
+  gather_facts: true
+  serial: 1
+  roles:
+    - role: common
+    - role: hardening
+    - role: docker
+    - role: mailcow
+    - role: smtp_relay
+    - role: backup

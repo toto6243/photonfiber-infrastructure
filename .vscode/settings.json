@@ -1,0 +1,16 @@
+{
+  "files.eol": "\n",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "terminal.integrated.cwd": "${workspaceFolder}",
+  "yaml.schemas": {
+    "https://json.schemastore.org/ansible-playbook.json": "ansible/playbooks/*.yml"
+  },
+  "[terraform]": {
+    "editor.defaultFormatter": "opentofu.vscode-opentofu",
+    "editor.formatOnSave": true
+  },
+  "[yaml]": {
+    "editor.defaultFormatter": "redhat.vscode-yaml"
+  }
+}

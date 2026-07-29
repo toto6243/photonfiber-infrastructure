@@ -1,0 +1,107 @@
+---
+- name: Validate authenticated SMTP relay configuration
+  ansible.builtin.assert:
+    that:
+      - mailcow_smtp_relay_host | length > 0
+      - mailcow_smtp_relay_port | int > 0
+      - mailcow_smtp_relay_port | int < 65536
+      - mailcow_smtp_relay_username | length > 0
+      - mailcow_smtp_relay_password | length > 0
+      - mailcow_smtp_relay_tls_mode in ['starttls', 'implicit_tls']
+    fail_msg: "SMTP relay is enabled but its generated configuration is incomplete."
+  when: mailcow_smtp_relay_enabled | bool
+  no_log: true
+
+- name: Ensure persistent Postfix configuration directory exists
+  ansible.builtin.file:
+    path: "{{ mailcow_install_path }}/data/conf/postfix"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Configure persistent Postfix authenticated relay overrides
+  ansible.builtin.blockinfile:
+    path: "{{ mailcow_install_path }}/data/conf/postfix/extra.cf"
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+    marker: "# {mark} PFIF AUTHENTICATED SMTP RELAY"
+    block: |
+      relayhost = [{{ mailcow_smtp_relay_host }}]:{{ mailcow_smtp_relay_port }}
+      smtp_sasl_auth_enable = yes
+      smtp_sasl_password_maps = hash:/opt/postfix/conf/sasl_passwd
+      smtp_sasl_security_options = noanonymous
+      smtp_sasl_tls_security_options = noanonymous
+      smtp_sasl_mechanism_filter = plain, login
+      smtp_tls_security_level = encrypt
+      smtp_tls_wrappermode = {{ 'yes' if mailcow_smtp_relay_tls_mode == 'implicit_tls' else 'no' }}
+  when: mailcow_smtp_relay_enabled | bool
+  notify: Restart Postfix Mailcow
+
+- name: Install SMTP relay credentials
+  ansible.builtin.template:
+    src: sasl_passwd.j2
+    dest: "{{ mailcow_install_path }}/data/conf/postfix/sasl_passwd"
+    owner: root
+    group: root
+    mode: '0600'
+  when: mailcow_smtp_relay_enabled | bool
+  no_log: true
+  notify: Rebuild relay credential map
+
+- name: Remove PFIF relay overrides when disabled
+  ansible.builtin.blockinfile:
+    path: "{{ mailcow_install_path }}/data/conf/postfix/extra.cf"
+    marker: "# {mark} PFIF AUTHENTICATED SMTP RELAY"
+    state: absent
+  when: not (mailcow_smtp_relay_enabled | bool)
+  notify: Restart Postfix Mailcow
+
+- name: Remove PFIF relay credential files when disabled
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ mailcow_install_path }}/data/conf/postfix/sasl_passwd"
+    - "{{ mailcow_install_path }}/data/conf/postfix/sasl_passwd.db"
+  when: not (mailcow_smtp_relay_enabled | bool)
+  no_log: true
+  notify: Restart Postfix Mailcow
+
+- name: Apply SMTP relay handlers now
+  ansible.builtin.meta: flush_handlers
+
+- name: Restart Postfix immediately to load relay configuration
+  ansible.builtin.command:
+    cmd: docker compose restart postfix-mailcow
+    chdir: "{{ mailcow_install_path }}"
+  changed_when: true
+  when: mailcow_smtp_relay_enabled | bool
+
+- name: Wait for Postfix container to become ready
+  ansible.builtin.command:
+    cmd: docker compose exec -T postfix-mailcow postconf -h relayhost
+    chdir: "{{ mailcow_install_path }}"
+  register: postfix_ready
+  retries: 12
+  delay: 5
+  until: postfix_ready.rc == 0
+  changed_when: false
+  when: mailcow_smtp_relay_enabled | bool
+
+- name: Verify active Postfix relay configuration
+  ansible.builtin.command:
+    cmd: docker compose exec -T postfix-mailcow postconf -h relayhost
+    chdir: "{{ mailcow_install_path }}"
+  register: smtp_relay_postconf
+  changed_when: false
+  when: mailcow_smtp_relay_enabled | bool
+
+- name: Confirm configured relay endpoint is active
+  ansible.builtin.assert:
+    that:
+      - "('[' ~ mailcow_smtp_relay_host ~ ']:' ~ (mailcow_smtp_relay_port | string)) in smtp_relay_postconf.stdout"
+    fail_msg: "Postfix did not load the configured authenticated relay endpoint."
+  when: mailcow_smtp_relay_enabled | bool

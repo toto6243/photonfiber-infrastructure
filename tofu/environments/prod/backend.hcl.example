@@ -1,0 +1,7 @@
+resource_group_name  = "PhotonFiber-Terraform"
+storage_account_name = "pfterraform6243"
+container_name       = "tfstate"
+key                  = "pfif/mailcow-prod.tfstate"
+use_azuread_auth     = true
+subscription_id      = "1fbb027b-5835-4069-a5e2-c60815358d1a"
+tenant_id            = "b5d9eb9a-edb1-43df-be5d-87be76aa7dd8"

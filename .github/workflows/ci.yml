@@ -1,0 +1,52 @@
+name: validate
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.12.5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Ansible tooling
+        run: pip install ansible-core ansible-lint yamllint
+
+      - name: Shell syntax
+        run: |
+          find . -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+          bash -n ./pfif
+
+      - name: OpenTofu format
+        run: tofu -chdir=tofu/environments/prod fmt -check -recursive
+
+      - name: OpenTofu init without backend
+        run: tofu -chdir=tofu/environments/prod init -backend=false
+
+      - name: OpenTofu validate
+        run: tofu -chdir=tofu/environments/prod validate
+
+      - name: YAML lint
+        run: yamllint ansible .github/workflows
+
+      - name: Ansible syntax check
+        run: |
+          cp ansible/inventory/hosts.yml.example ansible/inventory/hosts.yml
+          cp ansible/group_vars/mailcow/generated.yml.example ansible/group_vars/mailcow/generated.yml
+          ansible-galaxy collection install -r ansible/requirements.yml
+          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/site.yml --syntax-check

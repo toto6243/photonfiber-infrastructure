@@ -1,0 +1,6 @@
+---
+- name: Restart Mailcow
+  ansible.builtin.command: docker compose up -d --remove-orphans
+  args:
+    chdir: "{{ mailcow_install_path }}"
+  changed_when: true

@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "opentofu.vscode-opentofu",
+    "redhat.ansible",
+    "redhat.vscode-yaml",
+    "ms-azuretools.vscode-azureterraform",
+    "timonwong.shellcheck",
+    "editorconfig.editorconfig"
+  ]
+}

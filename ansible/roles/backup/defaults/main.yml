@@ -1,0 +1,7 @@
+---
+azure_backup_enabled: true
+azure_storage_account: ""
+azure_storage_container: "mailcow-backups"
+mailcow_backup_path: "/opt/mailcow-backups"
+mailcow_backup_retention_days: 14
+mailcow_backup_schedule: "*-*-* 02:30:00"
